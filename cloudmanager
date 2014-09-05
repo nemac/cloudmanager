@@ -5,7 +5,7 @@ import json, subprocess, sys, re, argparse, cloudmanager, os
 parser = argparse.ArgumentParser();
 parser.add_argument('servers', metavar='SERVER', type=str, nargs='*', help='servers to manage; defaults to all running servers')
 parser.add_argument('-c', '--conf', type=str, nargs=1,
-                    help='set the conf tag for the indicated server')
+                    help='set the conf tag for the indicated server; requires exactly one SERVER arg; causes all other options to be ignored')
 parser.add_argument('-p', '--provision', action='store_true',
                     help='provision the indicated server; requires exactly one SERVER arg; causes all other options to be ignored')
 parser.add_argument('-u', '--users', action='store_true',
@@ -57,7 +57,7 @@ if args.conf:
     sys.exit(0)
 
 
-if (args.provision):
+if args.provision:
     if len(args.servers) != 1:
         print "--provision requires exactly one SERVER arg"
         sys.exit(-1)
@@ -89,13 +89,16 @@ if (args.provision):
     })
     sys.exit(0)
 
+if not (args.users or args.hosts):
+    parser.print_help()
+    sys.exit(0)
+
 
 ###
 ### Manage users:
 ###
 
-if (args.users):
-
+if args.users:
     userfile = "users.json"
     if "CLOUDMANAGER_USERS" in os.environ:
         userfile = os.environ["CLOUDMANAGER_USERS"]
