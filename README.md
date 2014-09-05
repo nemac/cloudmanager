@@ -9,9 +9,9 @@ Requirements
 `cloudmanager` depends on the following:
 
 * `cirrus` project must be set up and on your PATH
-* `cloud` project must be available (for provisioning scripts, puppet manifests, etc)
+* `cloudconf` project must be available (for provisioning scripts, puppet manifests, etc)
 * `CLOUDMANAGER_PROVISION_DIR` environment must should be set to the absolute path of
-  the `cloud` project directory
+  the `cloudconf` project directory
 * `cloudusers` project must be available (for user management)
 * `CLOUDMANAGER_USERS` environment variable must be set to the absolute path of
   the `users.json` file in the `cloudusers` directory
@@ -41,7 +41,7 @@ Provisioning
 Provisioning refers to the process of installing and configuring basic system software
 on a server.  We use puppet for managing our server software configuration; each server's
 configuration is controlled by a puppet file known as a "manifest".  Our puppet manifests
-are stored in the `cloud` project, in a subdirectory called "puppet".  Puppet manifest
+are stored in the `cloudconf` project, in a subdirectory called "puppet".  Puppet manifest
 files end with a ".pp" suffix.  Each manifest corresponds to a particular type of server
 configuration.  For example, the manifest "webserver-a.pp" is the one used for our basic
 web servers (cloud0, cloud1).
