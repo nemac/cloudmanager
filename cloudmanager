@@ -76,7 +76,7 @@ if args.provision:
     print "running bootstrap script on server '%s' (making sure puppet is installed, etc)" % server
     cloudmanager.run_script_on_instance(server, scriptpath=os.path.join(provisiondir, "shell/bootstrap.sh"), noop=args.noop)
     print "transferring puppet files to server: %s" % server
-    cloudmanager.system("cirrus ec2 rsync --options ' --no-owner --no-group' %(server)s %(provisiondir)s/puppet/ /etc/puppet/files" % {
+    cloudmanager.system("cirrus ec2 rsync --options ' --archive --delete --no-owner --no-group' %(server)s %(provisiondir)s/puppet/ /etc/puppet/filesxo" % {
         "server" : server,
         "provisiondir" : provisiondir
     })
