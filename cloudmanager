@@ -76,7 +76,7 @@ if args.provision:
     print "running bootstrap script on server '%s' (making sure puppet is installed, etc)" % server
     cloudmanager.run_script_on_instance(server, scriptpath=os.path.join(provisiondir, "shell/bootstrap.sh"), noop=args.noop)
     print "transferring puppet files to server: %s" % server
-    cloudmanager.system("cirrus ec2 rsync --options ' --archive --delete --no-owner --no-group' %(server)s %(provisiondir)s/puppet/ /etc/puppet/filesxo" % {
+    cloudmanager.system("cirrus ec2 rsync --options ' --archive --delete --no-owner --no-group' %(server)s %(provisiondir)s/puppet/ /etc/puppet/files" % {
         "server" : server,
         "provisiondir" : provisiondir
     })
@@ -120,11 +120,12 @@ if args.users:
                 server_users[server] = []
             server_users[server].append({ "name" : username, "user" : users[username]})
     for server in args.servers:
-        if server not in server_users:
-            server_users[server] = []
-        quoted_user_names = [("'%s'" % u["name"]) for u in server_users[server]]
-        script = cloudmanager.script()
-        script += """
+        if "conf" in running_servers_info[server]['Tags']:
+            if server not in server_users:
+                server_users[server] = []
+            quoted_user_names = [("'%s'" % u["name"]) for u in server_users[server]]
+            script = cloudmanager.script()
+            script += """
 try:
     remove_all_users_except([%s])
 except Exception as e:
@@ -133,23 +134,23 @@ except Exception as e:
 
 """ % ",".join(quoted_user_names)
 
-        for u in server_users[server]:
-            username = u["name"]
-            user = u["user"]
-            script += "try:\n"
-            script += "    manageuser('%s', %s, [%s], [%s], '%s', '%s')\n" % (
-                username,
-                user["uid"],
-                ",".join(("'%s'" % p) for p in user["access"][server]),
-                ",".join(("'%s'" % k["key"]) for k in user["keys"]),
-                re.sub(r'\'', '\\\'', user["realname"]),
-                re.sub(r'\'', '\\\'', user["github-email"]),
-                )
-            script += "except Exception as e:\n"
-            script += "    print 'Exception while managing user %s'\n" % username
-            script += "    print e\n\n"
-        print "managing users on server: %s" % server
-        cloudmanager.run_script_on_instance(server, script=script, noop=args.noop)
+            for u in server_users[server]:
+                username = u["name"]
+                user = u["user"]
+                script += "try:\n"
+                script += "    manageuser('%s', %s, [%s], [%s], '%s', '%s')\n" % (
+                    username,
+                    user["uid"],
+                    ",".join(("'%s'" % p) for p in user["access"][server]),
+                    ",".join(("'%s'" % k["key"]) for k in user["keys"]),
+                    re.sub(r'\'', '\\\'', user["realname"]),
+                    re.sub(r'\'', '\\\'', user["github-email"]),
+                    )
+                script += "except Exception as e:\n"
+                script += "    print 'Exception while managing user %s'\n" % username
+                script += "    print e\n\n"
+            print "managing users on server: %s" % server
+            cloudmanager.run_script_on_instance(server, script=script, noop=args.noop)
 
 
 ###
@@ -162,7 +163,9 @@ if (args.hosts):
         ip_addresses[ server ] = running_servers_info[ server ][ "PrivateIP" ]
 
     for server in args.servers:
-        script = cloudmanager.script()
-        script += "\nmanage_etc_hosts_internal_ip_addresses('%s', %s)\n" % (server, ip_addresses)
-        print "managing /etc/hosts on server: %s" % server
-        cloudmanager.run_script_on_instance(server, script=script, noop=args.noop)
+        # only work with servers having a "conf" tag - they are the Linux servers
+        if "conf" in running_servers_info[server]['Tags']:
+            script = cloudmanager.script()
+            script += "\nmanage_etc_hosts_internal_ip_addresses('%s', %s)\n" % (server, ip_addresses)
+            print "managing /etc/hosts on server: %s" % server
+            cloudmanager.run_script_on_instance(server, script=script, noop=args.noop)
