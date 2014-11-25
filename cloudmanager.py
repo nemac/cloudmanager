@@ -25,7 +25,7 @@ def get_running_servers_info():
     for server in servers:
         if server['State'] != 'stopped':
             tags = {}
-            for kv in re.split(r',\s*', server['Tags']):
+            for kv in re.split(r'\s*[,\n]\s*', server['Tags']):
                 if kv != "":
                     k, v = re.split(r'\s*:\s*', kv)
                     tags[k] = v
