@@ -193,6 +193,24 @@ def revoke_user_nappl_priv(username):
         remove_user_from_group(username, 'nappl')
 
 #
+# 'mock' priv grant/revoke:
+#
+
+def grant_user_mock_priv(username):
+    if not group_exists("mock"):
+        raise Exception("Group 'mock' does not exist")
+    if not user_exists(username):
+        raise Exception("User %s does not exist" % username)
+    if not user_is_in_group(username, 'mock'):
+        add_user_to_group(username, 'mock')
+
+def revoke_user_mock_priv(username):
+    if not group_exists("mock"):
+        return
+    if user_exists(username) and user_is_in_group(username, 'mock'):
+        remove_user_from_group(username, 'mock')
+
+#
 # 'admin' priv grant/revoke:
 #
 
@@ -286,6 +304,15 @@ def manageuser(username, uid, privs, ssh_keys, realname, github_email, verbose=T
         revoke_user_mysql_root_priv(username)
         if verbose:
             print "    revoked mysql_root priv"
+
+    if 'mock' in privs:
+        grant_user_mock_priv(username)
+        if verbose:
+            print "    granted mock priv"
+    else:
+        revoke_user_mock_priv(username)
+        if verbose:
+            print "    revoked mock priv"
 
     if not os.path.exists("/home/%s/.gitconfig" % username):
         create_user_gitconfig(username, realname, github_email)
