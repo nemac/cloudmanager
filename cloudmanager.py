@@ -23,7 +23,7 @@ def get_running_servers_info():
     #servers = bash_command("(cd .. ; find . -name .vagrant -print) | sed -e 's/\/\.vagrant//' -e 's/\.\///'").split("\n")
     server_dict = {}
     for server in servers:
-        if server['State'] != 'stopped':
+        if server['State'] == 'running':
             tags = {}
             for kv in re.split(r'\s*[,\n]\s*', server['Tags']):
                 if kv != "":

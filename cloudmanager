@@ -81,7 +81,7 @@ if args.provision:
         "provisiondir" : provisiondir
     })
     print "installing puppet settings file on server: %s" % server
-    cloudmanager.run_script_on_instance(server, scriptpath=os.path.join(provisiondir, "shell/create-vagrant-settings.py"), args=server, noop=args.noop)
+    cloudmanager.run_script_on_instance(server, scriptpath=os.path.join(provisiondir, "shell/create-vagrant-settings.py"), args=server+".nemac.org", noop=args.noop)
     print "applying puppet manifest %s on server: %s" % (manifest, server)
     cloudmanager.system("cirrus ec2 ssh %(server)s 'puppet apply --verbose --debug --modulepath=/etc/puppet/files/modules:/etc/puppet/modules --fileserverconfig=/etc/puppet/files/fileserver.conf /etc/puppet/files/%(manifest)s.pp'" % {
         "server" : server,
