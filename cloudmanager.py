@@ -245,12 +245,35 @@ def remove_user(username):
         os.remove(usermail)
 
 
+def all_nappl_containers_and_usernames():
+    """Return a list of dictionaries of info about each nappl application currently installed
+    on this system.  Each dictionary has a key 'container' whose value is the name of the
+    container, and optionally a 'username' key whose value is the user name associated
+    with the container, if any."""
+    appls = []
+    for container_name in os.listdir("/var/nappl"):
+        appl = { 'container' : container_name }
+        path = "/var/nappl/" + container_name
+        if os.path.isdir(path):
+            metadata_file = path + "/metadata.json"
+            if os.path.exists(metadata_file):
+                with open(metadata_file, 'r') as f:
+                    metadata = json.loads(f.read())
+                if 'user' in metadata and 'name' in metadata['user']:
+                    appl['username'] = metadata['user']['name']
+                appls.append(appl)
+    return appls
+
+
+
 def remove_all_users_except(usernames):
-    """Remove all users with uid>=1000 except those in the given list.  Also, for each
-    user removed, remove the group with the same name as the user."""
+    """Remove all users with uid>=1000 except for users in the given list, and except
+    for users associated with a nappl applications.  For each user removed, also remove 
+    the group with the same name as the user."""
     all_users = pwd.getpwall()
+    nappl_usernames = [a['username'] for a in all_nappl_containers_and_usernames()]
     for u in all_users:
-        if u.pw_uid >= 1000 and u.pw_name not in usernames:
+        if u.pw_uid >= 1000 and u.pw_name not in usernames and u.pw_name not in nappl_usernames:
             remove_user(u.pw_name)
 
 #
