@@ -243,6 +243,7 @@ def remove_user(username):
     usermail = "/var/spool/mail/%s" % username
     if os.path.exists(usermail):
         os.remove(usermail)
+    remove_from_etc_cloudusers(username)
 
 
 def all_nappl_containers_and_usernames():
@@ -266,21 +267,101 @@ def all_nappl_containers_and_usernames():
 
 
 
-def remove_all_users_except(usernames):
-    """Remove all users with uid>=1000 except for users in the given list, and except
-    for users associated with a nappl applications.  For each user removed, also remove 
-    the group with the same name as the user."""
+def remove_all_users_except(usernames, usertype, usertypes):
+    """Remove all users with uid>=1000 except for accounts associated with
+    nappl applications, and except for users of type `usertype` whose name
+    appears in the list `usernames`, and except for users of any types
+    listed in `usertypes` other than `usertype`.  For each user removed,
+    also remove the group with the same name as the user, remove the home
+    directory, and remove the user from /etc/cloudusers."""
     all_users = pwd.getpwall()
     nappl_usernames = [a['username'] for a in all_nappl_containers_and_usernames()]
-    for u in all_users:
-        if u.pw_uid >= 1000 and u.pw_name not in usernames and u.pw_name not in nappl_usernames:
-            remove_user(u.pw_name)
+    users_to_remove = [u for u in all_users if
+                       ( u.pw_uid >= 1000
+                         and
+                         u.pw_name not in nappl_usernames )]
+    # users_to_remove now consists of all non-system, non-nappl users
+    # now remove from it all users of type usertype which are listed in usernames:
+    utype = load_user_types()
+    users_to_remove = [u for u in users_to_remove if not ( user_type(u.pw_name,utype) == usertype and u.pw_name in usernames )]
+    # now remove from users_to_remove all users of all types in usertypes except usertype:
+    other_types = [t for t in usertypes if t != usertype]
+    users_to_remove = [u for u in users_to_remove if not user_type(u.pw_name,utype) in other_types]
+    for u in users_to_remove:
+        remove_user(u.pw_name)
+
+
+etc_cloudusers = "/etc/cloudusers"
+etc_cloudusers_tmp = "/etc/cloudusers.tmp"
+
+def update_etc_cloudusers(username, usertype):
+    if not os.path.exists(etc_cloudusers):
+        os.system("touch " + etc_cloudusers)
+    user_done = False
+    with open(etc_cloudusers_tmp, "w") as f_out:
+        with open(etc_cloudusers, "r") as f_in:
+            for line in f_in.readlines():
+                m = re.match(r'^([^:]+):([^:]+)$', line.strip())
+                if m:
+                    u = m.group(1)
+                    t = m.group(2)
+                    if (u == username):
+                        f_out.write("%s:%s\n" % (username, usertype))
+                        user_done = True
+                    else:
+                        f_out.write("%s:%s\n" % (u, t))
+        if not user_done:
+            f_out.write("%s:%s\n" % (username, usertype))
+    os.rename(etc_cloudusers_tmp, etc_cloudusers)
+
+def remove_from_etc_cloudusers(username):
+    """Remove the given user from /etc/cloudusers."""
+    if not os.path.exists(etc_cloudusers):
+        # if /etc/cloudusers doesn't exist, there's nothing to do
+        return
+    found_user = False
+    with open(etc_cloudusers_tmp, "w") as f_out:
+        with open(etc_cloudusers, "r") as f_in:
+            for line in f_in.readlines():
+                m = re.match(r'^([^:]+):([^:]+)$', line.strip())
+                if m:
+                    u = m.group(1)
+                    t = m.group(2)
+                    if (u == username):
+                        found_user = True
+                    else:
+                        f_out.write("%s:%s\n" % (u, t))
+    # only touch /etc/cloudusers if user was deleted from it
+    if found_user:
+        os.rename(etc_cloudusers_tmp, etc_cloudusers)
+    else:
+        os.remove(etc_cloudusers_tmp)
+
+def load_user_types():
+    "Returns a dict whose keys are usernames, values are user types, read from /etc/cloudusers"
+    types = {}
+    with open(etc_cloudusers, "r") as f_in:
+        for line in f_in.readlines():
+            m = re.match(r'^([^:]+):([^:]+)$', line.strip())
+            if m:
+                u = m.group(1)
+                t = m.group(2)
+                types[u] = t
+    return types
+
+def user_type(username, utype):
+    """Takes a string username, and dict whose keys are usernames and whose values are user types,
+    and returns the type of the username.  If the username does not appear as a key of the dict,
+    returns None."""
+    if not username in utype:
+        return None
+    return utype[username]
 
 #
 # manageuser:
 #
 
-def manageuser(username, uid, privs, ssh_keys, realname, github_email, verbose=True):
+def manageuser(username, uid, privs, ssh_keys, realname, github_email, user_type, verbose=True):
     if not user_exists(username) and not uid_exists(uid):
         create_user(username, uid)
         if verbose:
@@ -289,6 +370,7 @@ def manageuser(username, uid, privs, ssh_keys, realname, github_email, verbose=T
         if verbose:
             print "user: %s [uid=%s]" % (username,uid)
     update_user_ssh_keys(username, ssh_keys)
+    update_etc_cloudusers(username, user_type)
     if verbose:
         print "    updated ssh keys"
 

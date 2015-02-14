@@ -114,11 +114,11 @@ if args.users:
         sys.exit(-1)
 
     server_users = {}
-    for username in users:
-        for server in users[username]["access"]:
+    for username in users["users"]:
+        for server in users["users"][username]["access"]:
             if server not in server_users:
                 server_users[server] = []
-            server_users[server].append({ "name" : username, "user" : users[username]})
+            server_users[server].append({ "name" : username, "user" : users["users"][username]})
     for server in args.servers:
         if "conf" in running_servers_info[server]['Tags']:
             if server not in server_users:
@@ -127,24 +127,27 @@ if args.users:
             script = cloudmanager.script()
             script += """
 try:
-    remove_all_users_except([%s])
+    remove_all_users_except([%s], '%s', [%s])
 except Exception as e:
     print "Exception while removing users"
     print e
 
-""" % ",".join(quoted_user_names)
+""" % (",".join(quoted_user_names),
+       users["user-type"],
+       ",".join([("'%s'" % t) for t in users["user-types"]]))
 
             for u in server_users[server]:
                 username = u["name"]
                 user = u["user"]
                 script += "try:\n"
-                script += "    manageuser('%s', %s, [%s], [%s], '%s', '%s')\n" % (
+                script += "    manageuser('%s', %s, [%s], [%s], '%s', '%s', '%s')\n" % (
                     username,
                     user["uid"],
                     ",".join(("'%s'" % p) for p in user["access"][server]),
                     ",".join(("'%s'" % k["key"]) for k in user["keys"]),
                     re.sub(r'\'', '\\\'', user["realname"]),
                     re.sub(r'\'', '\\\'', user["github-email"]),
+                    users["user-type"]
                     )
                 script += "except Exception as e:\n"
                 script += "    print 'Exception while managing user %s'\n" % username
